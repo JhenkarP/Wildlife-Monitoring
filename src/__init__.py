@@ -1,0 +1,1 @@
+"""Wildlife monitoring application modules."""
