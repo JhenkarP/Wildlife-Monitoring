@@ -128,7 +128,7 @@ with tab_live:
 
 with tab_detection:
     st.subheader("Wildlife image detection")
-    st.write("Upload an image to classify it as one of the four trained Indian mammals.")
+    st.write("Upload an image to classify it as one of the 13 trained Indian wildlife species.")
     image_file = st.file_uploader("Upload a wildlife image", type=["jpg", "jpeg", "png"])
     if image_file:
         from PIL import Image
@@ -137,7 +137,7 @@ with tab_detection:
         image = Image.open(image_file).convert("RGB")
         detection_model = st.selectbox(
             "Detection model",
-            ["Fine-tuned ResNet18 (four animals)", "SpeciesNet (comparison)"],
+            ["Fine-tuned ResNet18 (13 species)", "SpeciesNet (comparison)"],
         )
         if st.button("Run detection", type="primary"):
             try:
@@ -150,7 +150,10 @@ with tab_detection:
             except Exception as error:
                 st.error(f"{detection_model} could not run: {error}")
             else:
-                st.image(annotated, caption="Detected objects", use_container_width=True)
+                if detection_model.startswith("Fine-tuned"):
+                    st.image(annotated, caption="Identification and localization", use_container_width=True)
+                else:
+                    st.image(annotated, caption="Detected objects", use_container_width=True)
                 if detections:
                     st.dataframe(pd.DataFrame(detections), use_container_width=True, hide_index=True)
                     st.json(detections)

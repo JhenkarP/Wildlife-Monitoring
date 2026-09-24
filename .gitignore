@@ -6,9 +6,11 @@ __pycache__/
 # Local datasets and generated data
 data/*
 !data/.gitkeep
+data/feature_annotations/
 
 # Local model checkpoints and generated evaluation artifacts
 models/
+outputs/
 *.log
 
 # Research documents kept outside the source repository

@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT))
 from Train.train_indian_mammals import build_model
 
 
-MODEL_PATH = ROOT / "models" / "indian_four_animals_resnet18.pt"
+MODEL_PATH = ROOT / "models" / "indian_wildlife_resnet18.pt"
 IMAGE_DIR = ROOT / "data" / "training" / "images" / "indian leopard"
 REPORT_PATH = ROOT / "data" / "processed" / "custom_model_leopard_evaluation.csv"
 
@@ -49,7 +49,7 @@ def main() -> None:
                         "filename": path.name,
                         "predicted_label": classes[int(index)],
                         "confidence": round(float(confidence), 4),
-                        "is_leopard": classes[int(index)] == "leopard",
+                        "is_leopard": classes[int(index)] == "indian leopard",
                     }
                 )
             print(f"processed={min(start + len(batch_paths), len(image_paths))}/{len(image_paths)}", flush=True)

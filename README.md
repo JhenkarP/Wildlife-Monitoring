@@ -11,11 +11,12 @@ The first implementation phase focuses on the verified project objective:
 - Analyze species, season, location, and migration patterns.
 - Display an interactive dashboard.
 - Provide an iNaturalist API adapter for recent observations.
-- Classify uploaded images with the fine-tuned four-animal ResNet18 model, with SpeciesNet available for comparison.
+- Classify uploaded images with the fine-tuned 13-species ResNet18 model, with SpeciesNet available for comparison.
 
 The repository currently does not include a wildlife dataset. Place the historical CSV at `data/raw/observations.csv` when available.
 
 See [FEATURES.md](FEATURES.md) for the current implemented, partial, and planned feature list.
+See [WORKFLOW.md](WORKFLOW.md) for the stage-by-stage code layout.
 
 ## Start
 
@@ -41,5 +42,5 @@ Common alternate names such as `scientific_name`, `date`, `lat`, `lon`, and `ima
 1. Historical CSV audit and migration analytics.
 2. SQLite observation repository and dashboard filters.
 3. iNaturalist recent-observation ingestion for selected protected areas.
-4. Fine-tuned four-animal classification with optional SpeciesNet comparison.
+4. Fine-tuned 13-species classification with optional SpeciesNet comparison.
 5. Evaluation, reporting, and deployment hardening.

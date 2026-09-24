@@ -81,20 +81,21 @@ Status meanings:
 ### Image detection
 
 - Upload JPG, JPEG, or PNG wildlife images.
-- Run the fine-tuned ResNet18 classifier for Asian elephant, greater one-horned rhino, leopard, and gaur.
+- The Streamlit detector runs the completed 13-species ResNet18 checkpoint.
 - Keep SpeciesNet available as an optional comparison model.
 - Display predicted labels and confidence scores.
-- Draw a dark-blue box around the localized animal; SpeciesNet supplies localization and ResNet18 supplies the four-class prediction.
+- Draw a dark-blue box around the localized animal; SpeciesNet supplies localization and the configured ResNet18 supplies the classification.
 
 ### Model training
 
-- Train a four-class Indian mammal classifier for Asian elephant, greater one-horned rhino, leopard, and gaur.
-- Split the curated dataset into 70% training and 30% held-out testing data.
+- Train a 13-class Indian wildlife classifier from the collected species folders.
+- Exclude empty species folders from training; the current 13-class run excluded the empty Gaur folder.
+- Use 60% of each non-empty species folder for training; split the remainder into validation and test sets.
 - Use transfer learning with torchvision ResNet18 and ImageNet preprocessing.
-- Fine-tune the final ResNet18 layer block and classifier head.
-- Store the fine-tuned checkpoint at `models/indian_four_animals_resnet18_finetuned.pt`.
-- Verified held-out accuracy: 96.41%.
-- Connect the fine-tuned checkpoint to the Streamlit image-detection workflow.
+- Fine-tune the final ResNet18 layer blocks and classifier head with augmentation, label smoothing, class balancing, and validation-based model selection.
+- Store the multi-species checkpoint at `models/indian_wildlife_resnet18.pt`.
+- Store per-species precision, recall, F1, support, split counts, and the confusion matrix at `models/indian_wildlife_resnet18.metrics.json`.
+- Verified held-out test accuracy for the 13-species checkpoint: 88.82% across 1,368 test images; macro F1: 87.58%.
 
 ### Data quality and operation
 
@@ -126,6 +127,18 @@ Status meanings:
 - Filtered CSV report download is available.
 - PDF conservation reports are still needed.
 
+### Model explainability
+
+- A Bengal tiger feature annotation tool is available at `annotation/annotate_tiger_features.py`; annotations are stored locally under `data/feature_annotations/` for the next feature-labeling stage.
+
+### Assisted feature labeling
+
+- A versioned three-feature schema covers all 14 non-empty/current species folders in `src/feature_schema.py`.
+- `annotation/crop_from_manifest.py` recreates crops from existing normalized boxes without loading or running a model; this is the preferred path when boxes have already been supplied.
+- `annotation/validate_feature_records.py` validates agent JSONL proposals against the schema and writes valid proposals separately with `review_status: needs_review`.
+- `annotation/promote_verified_features.py` is the training-data gate; only records explicitly changed to `review_status: verified` are copied into a verified-label file.
+- Agent proposals, reviewer corrections, and verified labels must remain separate; the existing verified Bengal tiger box annotations are not modified by this workflow.
+
 ## Planned
 
 - Audit the historical migration dataset after it is provided.
@@ -135,12 +148,14 @@ Status meanings:
 - Add manual verification and correction of detections.
 - Expand evaluation with a separately annotated wildlife image set and per-image error analysis.
 - Add camera-trap batch processing.
-- Add model accuracy metrics such as precision, recall, and mAP.
+- Add mAP evaluation with a separately annotated wildlife image set.
+- Generate and compare reusable species fingerprints and named feature evidence such as horns, stripes, ears, facial structure, and body shape.
+- Build the multimodal agent and human review interface on top of the crop manifest and validated proposal format.
 - Add future drone, IoT, and edge-AI adapters.
 
 ## Current verified demo state
 
 - Local Streamlit app runs at `http://localhost:8501`.
-- The fine-tuned four-animal model is the default image classifier; SpeciesNet remains available for comparison.
+- The Streamlit detector uses `models/indian_wildlife_resnet18.pt`; the earlier four-animal checkpoint has been removed.
 - The dashboard currently reports that `data/raw/observations.csv` is missing; historical migration analysis is therefore not populated until that file is supplied or uploaded.
 - iNaturalist and GBIF counts are request-dependent and must be recorded with the region, date window, filters, and fetch date; old demo totals are not treated as current totals.

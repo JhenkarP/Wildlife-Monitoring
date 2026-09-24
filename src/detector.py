@@ -13,7 +13,7 @@ from PIL import ImageFont
 from torchvision import models, transforms
 
 
-CUSTOM_MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "indian_four_animals_resnet18_finetuned.pt"
+CUSTOM_MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "indian_wildlife_resnet18.pt"
 
 
 ANNOTATION_COLOR = "#0B2D5C"
@@ -55,7 +55,10 @@ def _load_custom_model():
     checkpoint = torch.load(CUSTOM_MODEL_PATH, map_location="cpu", weights_only=True)
     classes = checkpoint["classes"]
     model = models.resnet18(weights=None)
-    model.fc = torch.nn.Linear(model.fc.in_features, len(classes))
+    model.fc = torch.nn.Sequential(
+        torch.nn.Dropout(p=0.25),
+        torch.nn.Linear(model.fc.in_features, len(classes)),
+    )
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
     return model, classes
@@ -90,7 +93,7 @@ def _strongest_speciesnet_detection(prediction):
 
 
 def classify_with_custom_model(image: Image.Image):
-    """Classify an upload with the fine-tuned four-animal model."""
+    """Classify an upload with the fine-tuned 13-species wildlife model."""
     model, classes = _load_custom_model()
     localization = _strongest_speciesnet_detection(_speciesnet_prediction(image))
     classification_image = image
@@ -112,8 +115,9 @@ def classify_with_custom_model(image: Image.Image):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]
     )
+    image_tensor = transform(classification_image).unsqueeze(0)
     with torch.no_grad():
-        probabilities = model(transform(classification_image).unsqueeze(0)).softmax(dim=1)[0]
+        probabilities = model(image_tensor).softmax(dim=1)[0]
     index = int(probabilities.argmax())
     label = classes[index]
     confidence = round(float(probabilities[index]), 3)
@@ -122,9 +126,10 @@ def classify_with_custom_model(image: Image.Image):
         {
             "label": label,
             "confidence": confidence,
-            "model": "fine-tuned ResNet18",
+            "classification_model": "fine-tuned ResNet18",
+            "localization_model": "SpeciesNet",
             "bbox": [round(value, 4) for value in bbox],
-            "bbox_note": "SpeciesNet localization with fine-tuned ResNet18 classification.",
+            "bbox_note": "SpeciesNet localization box used before fine-tuned ResNet18 classification.",
         }
     ]
 
