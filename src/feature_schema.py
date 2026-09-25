@@ -8,9 +8,9 @@ from typing import Any
 SCHEMA_VERSION = "1.1"
 FEATURE_SCHEMA: dict[str, tuple[tuple[str, str], ...]] = {
     "asian elephant": (("trunk", "The trunk is visible."), ("fan_shaped_ears", "The large fan-shaped ears are visible."), ("tusks", "One or more tusks are visible.")),
-    "asiatic lion": (("reduced_mane_exposing_ears", "A reduced or open mane leaves the ears visibly exposed."), ("belly_fold", "The characteristic longitudinal belly fold is visible."), ("dark_tail_tuft", "A dark tuft is visible at the end of the tail.")),
-    "barasingha": (("multi_tined_antlers", "Broad antlers with multiple tines are visible."), ("pale_underside", "A pale underside or rump is visible."), ("reddish_brown_coat", "The coat is visibly reddish brown.")),
-    "bengal tiger": (("facial_stripes", "Dark vertical stripes are visible on the face."), ("vertical_body_stripes", "Dark vertical stripes cross an orange body coat."), ("white_cheek_chest", "White fur is visible on the cheek or chest.")),
+    "asiatic lion": (("sparse_mane_exposed_ears", "A sparse mane leaves the ears visibly exposed."), ("longitudinal_belly_fold", "The characteristic longitudinal fold along the belly is visible."), ("dark_tail_tuft", "A dark tuft is visible at the end of the tail.")),
+    "barasingha": (("multi_tined_antlers", "Broad antlers with multiple tines are visible."), ("white_throat_patch", "A distinct white patch is visible on the throat."), ("reddish_brown_coat", "The coat is visibly reddish brown.")),
+    "bengal tiger": (("orange_white_facial_fur", "Textured facial fur shows contrasting orange and white areas."), ("vertical_body_stripes", "Dark vertical stripes cross an orange body coat."), ("dark_banded_tail", "The tail has clearly visible dark bands across its length.")),
     "chital": (("white_body_spots", "Many small white spots are visible across the body."), ("three_tined_antlers", "Antlers with the characteristic branching tines are visible."), ("dark_dorsal_stripe", "A dark stripe is visible along the back.")),
     "dhole": (("reddish_coat", "The coat is distinctly reddish or rust colored."), ("rounded_ears", "Short rounded ears are clearly visible."), ("bushy_dark_tipped_tail", "A bushy tail with a darker tip is visible.")),
     "gaur": (("shoulder_hump", "A pronounced shoulder hump is visible."), ("white_lower_leg_stockings", "The lower legs have distinct white stockings."), ("curved_horns", "Short curved horns are visible.")),

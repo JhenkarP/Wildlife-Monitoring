@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from functools import lru_cache
 import json
 from pathlib import Path
 import sys
@@ -15,6 +16,21 @@ from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.feature_schema import FEATURE_SCHEMA, SCHEMA_VERSION
+
+
+@lru_cache(maxsize=1)
+def load_qwen(model_name: str):
+    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+        model_name,
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
+        device_map="auto",
+        max_memory={0: "7GiB", "cpu": "24GiB"},
+        offload_folder="outputs/qwen_offload",
+        local_files_only=True,
+    )
+    processor = AutoProcessor.from_pretrained(model_name, local_files_only=True)
+    return model, processor
 
 
 def parse_json_response(text: str, species: str) -> dict[str, object]:
@@ -32,9 +48,12 @@ def parse_json_response(text: str, species: str) -> dict[str, object]:
     if isinstance(record, list):
         features = {
             item["feature"]: {
-                "status": item["status"],
-                "confidence": item["confidence"],
-                "evidence": item["evidence"],
+                **{
+                    "status": item["status"],
+                    "confidence": item["confidence"],
+                    "evidence": item["evidence"],
+                },
+                **({"bbox": item["bbox"]} if "bbox" in item else {}),
             }
             for item in record
             if isinstance(item, dict) and "feature" in item
@@ -74,7 +93,9 @@ def main() -> None:
     prompt = f"""Inspect this {args.species} crop and propose labels only for visible features.
 Return one compact valid JSON object and no markdown, reasoning, list, or explanation. Use exactly these feature keys:
 {feature_lines}
-For each feature, return an object with status (visible, not_visible, or uncertain), confidence (0 to 1), and evidence. Use uncertain when the feature cannot be judged reliably. Do not invent details. Set review_status to needs_review."""
+For each feature, return an object with status (visible, not_visible, or uncertain), confidence (0 to 1), evidence, and bbox.
+The bbox must be [x, y, width, height] normalized from 0 to 1 within this crop when the feature is visible or uncertain; use null when it cannot be located.
+Use uncertain when the feature cannot be judged reliably. Do not invent details. Set review_status to needs_review."""
     messages = [{
         "role": "user",
         "content": [
@@ -83,16 +104,7 @@ For each feature, return an object with status (visible, not_visible, or uncerta
         ],
     }]
 
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        args.model,
-        torch_dtype=torch.float16,
-        low_cpu_mem_usage=True,
-        device_map="auto",
-        max_memory={0: "3GiB", "cpu": "24GiB"},
-        offload_folder="outputs/qwen_offload",
-        local_files_only=True,
-    )
-    processor = AutoProcessor.from_pretrained(args.model, local_files_only=True)
+    model, processor = load_qwen(args.model)
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     image_inputs, video_inputs = process_vision_info(messages)
     inputs = processor(
@@ -115,8 +127,9 @@ For each feature, return an object with status (visible, not_visible, or uncerta
     record["source_image"] = str(args.image.resolve())
     record["review_status"] = "needs_review"
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    indent = 2 if args.output.suffix.lower() == ".json" else None
     with args.output.open("w", encoding="utf-8") as output_file:
-        output_file.write(json.dumps(record, ensure_ascii=True) + "\n")
+        output_file.write(json.dumps(record, ensure_ascii=True, indent=indent) + "\n")
     print(json.dumps(record, ensure_ascii=True, indent=2))
     print(f"raw_response={raw_output_path.resolve()}")
     print(f"saved={args.output.resolve()}")
