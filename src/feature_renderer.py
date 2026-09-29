@@ -18,7 +18,7 @@ def render_feature_boxes(image: Image.Image, record: dict) -> Image.Image:
             continue
     if font is None:
         font = ImageFont.load_default()
-    colors = {"visible": "#16803c"}
+    colors = {"visible": "#16803c", "uncertain": "#c47f00"}
     annotations = []
     for name, value in record.get("features", {}).items():
         if not isinstance(value, dict) or value.get("status") not in colors:

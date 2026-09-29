@@ -40,6 +40,8 @@ def normalize_feature_boxes(record: dict, image: Image.Image) -> None:
     for value in record.get("features", {}).values():
         if not isinstance(value, dict) or not isinstance(value.get("bbox"), list) or len(value["bbox"]) != 4:
             continue
+        if not all(isinstance(part, (int, float)) and not isinstance(part, bool) for part in value["bbox"]):
+            continue
         parts = [float(part) for part in value["bbox"]]
         if max(parts) <= 1:
             continue
@@ -50,6 +52,15 @@ def normalize_feature_boxes(record: dict, image: Image.Image) -> None:
             max(0.0, min(1.0, (right - left) / image.width)),
             max(0.0, min(1.0, (bottom - top) / image.height)),
         ]
+
+
+def promote_confident_features(record: dict, threshold: float = 0.70) -> None:
+    for value in record.get("features", {}).values():
+        if not isinstance(value, dict):
+            continue
+        confidence = value.get("confidence")
+        if isinstance(confidence, (int, float)) and not isinstance(confidence, bool) and confidence >= threshold:
+            value["status"] = "visible"
 
 
 def main() -> None:
@@ -92,6 +103,7 @@ def main() -> None:
 
         record = json.loads(proposal_path.read_text(encoding="utf-8"))
         normalize_feature_boxes(record, crop)
+        promote_confident_features(record)
 
     visible_count = sum(
         value.get("status") == "visible"
