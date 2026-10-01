@@ -18,7 +18,7 @@ def render_feature_boxes(image: Image.Image, record: dict) -> Image.Image:
             continue
     if font is None:
         font = ImageFont.load_default()
-    colors = {"visible": "#16803c", "uncertain": "#c47f00"}
+    colors = {"visible": "#16803c", "uncertain": "#16803c"}
     annotations = []
     for name, value in record.get("features", {}).items():
         if not isinstance(value, dict) or value.get("status") not in colors:
@@ -33,7 +33,7 @@ def render_feature_boxes(image: Image.Image, record: dict) -> Image.Image:
         bottom = min(image.height, (y + height) * image.height)
         color = colors[value["status"]]
         draw.rectangle((left, top, right, bottom), outline=color, width=4)
-        label = f"{name.replace('_', ' ').title()} - {value['status'].title()} - {float(value.get('confidence', 0.0)):.2f}"
+        label = name.replace("_", " ").title()
         text_box = draw.textbbox((0, 0), label, font=font)
         text_width = text_box[2] - text_box[0]
         text_height = text_box[3] - text_box[1]

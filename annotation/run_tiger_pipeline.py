@@ -1,4 +1,4 @@
-"""Run localization, cropping, species identification, and Qwen feature review."""
+"""Run localization, cropping, species identification, and Florence-2 review."""
 
 from __future__ import annotations
 
@@ -9,7 +9,6 @@ import shutil
 import sys
 from tempfile import TemporaryDirectory
 
-import torch
 from PIL import Image
 from PIL import ImageOps
 
@@ -21,10 +20,20 @@ from src.feature_renderer import render_feature_boxes
 
 
 STANDARD_CROP_SIZE = (640, 640)
+MIN_SPECIESNET_CONFIDENCE = 0.60
+MIN_SPECIESNET_BOX_AREA = 0.05
 
 
 def crop_from_detection(image: Image.Image, detection: dict) -> tuple[Image.Image, tuple[float, float, float, float]]:
     x, y, width, height = [float(value) for value in detection["bbox"]]
+    confidence = float(detection.get("conf", 0.0))
+    if confidence < MIN_SPECIESNET_CONFIDENCE:
+        raise ValueError(
+            f"SpeciesNet animal detection confidence {confidence:.3f} is below "
+            f"the {MIN_SPECIESNET_CONFIDENCE:.2f} threshold"
+        )
+    if width * height < MIN_SPECIESNET_BOX_AREA:
+        raise ValueError("SpeciesNet animal detection box is too small")
     left = max(0, int(x * image.width))
     top = max(0, int(y * image.height))
     right = min(image.width, int((x + width) * image.width))
@@ -54,15 +63,6 @@ def normalize_feature_boxes(record: dict, image: Image.Image) -> None:
         ]
 
 
-def promote_confident_features(record: dict, threshold: float = 0.70) -> None:
-    for value in record.get("features", {}).values():
-        if not isinstance(value, dict):
-            continue
-        confidence = value.get("confidence")
-        if isinstance(confidence, (int, float)) and not isinstance(confidence, bool) and confidence >= threshold:
-            value["status"] = "visible"
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("image", type=Path)
@@ -71,9 +71,6 @@ def main() -> None:
     args = parser.parse_args()
     if not args.image.is_file():
         raise SystemExit(f"Missing image: {args.image}")
-    if not torch.cuda.is_available():
-        raise SystemExit("CUDA is required for the Qwen feature stage")
-
     species_slug = args.species.replace(" ", "_")
     original = Image.open(args.image).convert("RGB")
     prediction = _speciesnet_prediction(original)
@@ -103,7 +100,6 @@ def main() -> None:
 
         record = json.loads(proposal_path.read_text(encoding="utf-8"))
         normalize_feature_boxes(record, crop)
-        promote_confident_features(record)
 
     visible_count = sum(
         value.get("status") == "visible"
