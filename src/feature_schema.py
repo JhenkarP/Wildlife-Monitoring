@@ -7,20 +7,20 @@ from typing import Any
 
 SCHEMA_VERSION = "1.2"
 FEATURE_SCHEMA: dict[str, tuple[tuple[str, str], ...]] = {
-    "asian elephant": (("trunk", "The trunk is visible."), ("fan_shaped_ears", "The large fan-shaped ears are visible."), ("tusks", "One or more tusks are visible.")),
-    "asiatic lion": (("sparse_mane_exposed_ears", "A sparse mane leaves the ears visibly exposed."), ("longitudinal_belly_fold", "The characteristic longitudinal fold along the belly is visible."), ("dark_tail_tuft", "A dark tuft is visible at the end of the tail.")),
-    "barasingha": (("multi_tined_antlers", "Broad antlers with multiple tines are visible."), ("white_throat_patch", "A distinct white patch is visible on the throat."), ("reddish_brown_coat", "The coat is visibly reddish brown.")),
-    "bengal tiger": (("orange_white_facial_fur", "Textured facial fur shows contrasting orange and white areas."), ("vertical_body_stripes", "Dark vertical stripes cross an orange body coat."), ("dark_banded_tail", "The tail has clearly visible dark bands across its length.")),
-    "chital": (("white_body_spots", "Many small white spots are visible across the body."), ("three_tined_antlers", "Antlers with the characteristic branching tines are visible."), ("dark_dorsal_stripe", "A dark stripe is visible along the back.")),
-    "dhole": (("reddish_coat", "The coat is distinctly reddish or rust colored."), ("rounded_ears", "Short rounded ears are clearly visible."), ("bushy_dark_tipped_tail", "A bushy tail with a darker tip is visible.")),
-    "gaur": (("shoulder_hump", "A pronounced shoulder hump is visible."), ("white_lower_leg_stockings", "The lower legs have distinct white stockings."), ("curved_horns", "Short curved horns are visible.")),
-    "greater one horned rhino": (("single_horn", "One horn is visible on the snout."), ("armor_like_skin_folds", "Thick folds of skin around the neck and shoulders form armor-like panels."), ("rounded_ears", "Rounded ears are clearly visible above the head.")),
-    "hanuman langur": (("black_face", "The face and muzzle are distinctly black."), ("grey_silver_coat", "The body coat is grey or silvery."), ("long_tail", "A long tail is visible.")),
-    "indian leopard": (("body_rosette_spots", "Open-centered dark rosettes are clearly visible across the torso or flanks."), ("long_white_whiskers", "Several fine white whiskers extend from the muzzle or cheeks, even when only partly visible."), ("spotted_paws", "Dark spots are visible on the lower legs or around the paws and toes.")),
-    "nilgai": (("blue_grey_male_coat", "The adult male has a blue-grey coat."), ("white_throat_patch", "A distinct white throat patch is visible."), ("short_straight_horns", "Short mostly straight horns are visible.")),
-    "sambar": (("dark_shaggy_coat", "The coat is dark and visibly shaggy."), ("large_ears", "Large ears are clearly visible."), ("antlers", "Large branching antlers are visible.")),
-    "sloth bear": (("shaggy_black_coat", "A shaggy black coat is visible."), ("pale_muzzle", "A broad pale muzzle is visible."), ("white_chest_mark", "A pale or white chest mark is visible.")),
-    "striped hyena": (("vertical_dark_stripes", "Dark vertical stripes are visible on the body."), ("sloping_back", "The characteristic sloping back is visible."), ("dorsal_mane", "A mane is visible along the neck or back.")),
+    "asian elephant": (("trunk", "Visible trunk on the elephant."), ("fan_shaped_ears", "Large fan-shaped ears on the elephant."), ("tusks", "Visible tusks on the elephant.")),
+    "asiatic lion": (("sparse_mane_exposed_ears", "Sparse mane with exposed ears on the lion."), ("longitudinal_belly_fold", "Longitudinal belly fold on the lion."), ("dark_tail_tuft", "Dark tuft at the end of the lion's tail.")),
+    "barasingha": (("multi_tined_antlers", "Broad antlers with multiple tines on the barasingha."), ("white_throat_patch", "White throat patch on the barasingha."), ("reddish_brown_coat", "Reddish-brown coat on the barasingha.")),
+    "bengal tiger": (("orange_white_facial_fur", "Contrasting orange and white facial fur on the tiger."), ("vertical_body_stripes", "Dark vertical stripes on the tiger's orange body."), ("dark_banded_tail", "Dark bands along the tiger's tail.")),
+    "chital": (("white_body_spots", "White spots across the chital's body."), ("three_tined_antlers", "Antlers with three branching tines on the chital."), ("dark_dorsal_stripe", "Dark dorsal stripe along the chital's back.")),
+    "dhole": (("reddish_coat", "Reddish or rust-colored coat on the dhole."), ("rounded_ears", "Short rounded ears on the dhole."), ("bushy_dark_tipped_tail", "Bushy dark-tipped tail on the dhole.")),
+    "gaur": (("shoulder_hump", "Pronounced shoulder hump on the gaur."), ("white_lower_leg_stockings", "White stockings on the gaur's lower legs."), ("curved_horns", "Short curved horns on the gaur.")),
+    "greater one horned rhino": (("single_horn", "Small single horn at the front of the rhino's snout."), ("armor_like_skin_folds", "Horizontal skin folds on the rhino's neck and shoulders behind the head."), ("rounded_ears", "Small rounded ear above the rhino's head.")),
+    "hanuman langur": (("black_face", "Black face and muzzle on the langur."), ("grey_silver_coat", "Grey-silver coat on the langur."), ("long_tail", "Long tail on the langur.")),
+    "indian leopard": (("body_rosette_spots", "Open-centered rosette spots across the leopard's torso or flanks."), ("long_white_whiskers", "Long white whiskers around the leopard's muzzle or cheeks."), ("spotted_paws", "Dark spots on the leopard's lower legs or paws.")),
+    "nilgai": (("blue_grey_male_coat", "Blue-grey coat on the adult male nilgai."), ("white_throat_patch", "White throat patch on the nilgai."), ("short_straight_horns", "Short mostly straight horns on the nilgai.")),
+    "sambar": (("dark_shaggy_coat", "Dark shaggy coat on the sambar."), ("large_ears", "Large ears on the sambar."), ("antlers", "Large branching antlers on the sambar.")),
+    "sloth bear": (("shaggy_black_coat", "Shaggy black coat on the sloth bear."), ("pale_muzzle", "Broad pale muzzle on the sloth bear."), ("white_chest_mark", "Pale or white chest mark on the sloth bear.")),
+    "striped hyena": (("vertical_dark_stripes", "Dark vertical stripes on the hyena's body."), ("sloping_back", "Sloping back on the hyena."), ("dorsal_mane", "Mane along the hyena's neck or back.")),
 }
 
 ALLOWED_STATUSES = {"visible", "not_visible", "uncertain"}
@@ -49,9 +49,6 @@ def validate_label_record(record: dict[str, Any]) -> list[str]:
         status = value.get("status")
         if status not in ALLOWED_STATUSES:
             errors.append(f"{name}: status must be one of {sorted(ALLOWED_STATUSES)}")
-        confidence = value.get("confidence")
-        if not isinstance(confidence, (int, float)) or isinstance(confidence, bool) or not 0 <= confidence <= 1:
-            errors.append(f"{name}: confidence must be a number from 0 to 1")
         if not isinstance(value.get("evidence"), str) or not value["evidence"].strip():
             errors.append(f"{name}: evidence must be a non-empty string")
     return errors

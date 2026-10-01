@@ -1,131 +1,143 @@
-"""Generate review-only feature-label proposals with a local Qwen VLM."""
+"""Generate review-only feature-label proposals with Florence-2."""
 
 from __future__ import annotations
 
 import argparse
-from functools import lru_cache
 import json
 from pathlib import Path
 import sys
 import traceback
 
-import torch
-from qwen_vl_utils import process_vision_info
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from annotation.probe_florence2 import detect, load_model
 from src.feature_schema import FEATURE_SCHEMA, SCHEMA_VERSION
 
 
-@lru_cache(maxsize=1)
-def load_qwen(model_name: str):
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        model_name,
-        torch_dtype=torch.float16,
-        low_cpu_mem_usage=True,
-        device_map="auto",
-        max_memory={0: "7GiB", "cpu": "24GiB"},
-        offload_folder="outputs/qwen_offload",
-        local_files_only=True,
+DEFAULT_MODEL = "microsoft/Florence-2-base"
+
+
+def _normalized_box(box: list[float], image: Image.Image) -> list[float] | None:
+    if len(box) != 4:
+        return None
+    left, top, right, bottom = [float(value) for value in box]
+    left = max(0.0, min(float(image.width), left))
+    top = max(0.0, min(float(image.height), top))
+    right = max(left, min(float(image.width), right))
+    bottom = max(top, min(float(image.height), bottom))
+    if right <= left or bottom <= top:
+        return None
+    return [
+        round(left / image.width, 6),
+        round(top / image.height, 6),
+        round((right - left) / image.width, 6),
+        round((bottom - top) / image.height, 6),
+    ]
+
+
+def _polygon_boxes(task_result: dict[str, object]) -> list[list[float]]:
+    boxes: list[list[float]] = []
+    for polygon in task_result.get("polygons", []):
+        if not isinstance(polygon, list) or not polygon:
+            continue
+        points = polygon[0] if isinstance(polygon[0], list) else polygon
+        if not isinstance(points, list) or len(points) < 6 or len(points) % 2:
+            continue
+        coordinates = [float(value) for value in points]
+        xs = coordinates[0::2]
+        ys = coordinates[1::2]
+        left, top, right, bottom = min(xs), min(ys), max(xs), max(ys)
+        if right - left < 2 or bottom - top < 2:
+            continue
+        boxes.append([left, top, right, bottom])
+    return boxes
+
+
+def _feature_proposal(
+    model,
+    processor,
+    device: str,
+    dtype,
+    image: Image.Image,
+    species: str,
+    feature_name: str,
+    description: str,
+) -> tuple[dict[str, object], dict[str, object]]:
+    feature_query = (
+        feature_name.replace("_", " ")
+        if "tail" in feature_name
+        else description.rstrip(".")
     )
-    processor = AutoProcessor.from_pretrained(model_name, local_files_only=True)
-    return model, processor
-
-
-def parse_json_response(text: str, species: str) -> dict[str, object]:
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-    try:
-        record = json.loads(cleaned)
-    except json.JSONDecodeError:
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        if start < 0 or end <= start:
-            raise
-        record = json.loads(cleaned[start:end + 1])
-    if isinstance(record, list):
-        features = {
-            item["feature"]: {
-                **{
-                    "status": item["status"],
-                    "confidence": item["confidence"],
-                    "evidence": item["evidence"],
-                },
-                **({"bbox": item["bbox"]} if "bbox" in item else {}),
-            }
-            for item in record
-            if isinstance(item, dict) and "feature" in item
-        }
-        return {"species": species, "features": features}
-    if not isinstance(record, dict):
-        raise ValueError("model response must be a JSON object or feature array")
-    if isinstance(record.get("features"), dict):
-        return record
-    feature_names = {name for name, _ in FEATURE_SCHEMA[species]}
-    direct_features = {name: record[name] for name in feature_names if isinstance(record.get(name), dict)}
-    if direct_features:
-        return {"species": species, "features": direct_features}
-    if "feature" in record:
-        name = record["feature"]
-        return {"species": species, "features": {name: {key: record[key] for key in ("status", "confidence", "evidence")}}}
-    raise ValueError("model response did not contain recognized features")
+    query = feature_query
+    raw = detect(model, processor, device, dtype, image, query)
+    task_result = raw.get("<OPEN_VOCABULARY_DETECTION>", {})
+    raw_boxes = task_result.get("bboxes", [])
+    if not raw_boxes:
+        raw_boxes = _polygon_boxes(task_result)
+    boxes = [
+        normalized
+        for box in raw_boxes
+        if isinstance(box, list)
+        and (normalized := _normalized_box(box, image)) is not None
+    ]
+    if boxes:
+        bbox = max(boxes, key=lambda value: value[2] * value[3])
+        evidence = (
+            f"Florence-2 returned {len(boxes)} candidate box(es) for '{feature_query}'. "
+            "The candidate is unverified and requires human review."
+        )
+        status = "uncertain"
+    else:
+        bbox = None
+        evidence = (
+            f"Florence-2 returned no candidate box for '{feature_query}'; "
+            "the feature is not shown."
+        )
+        status = "not_visible"
+    proposal = {
+        "status": status,
+        "evidence": evidence,
+        "bbox": bbox,
+        "model_query": query,
+        "feature_description": description,
+    }
+    return proposal, {"query": query, "result": raw}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("image", type=Path)
     parser.add_argument("--species", required=True, choices=sorted(FEATURE_SCHEMA))
-    parser.add_argument("--model", default="Qwen/Qwen2.5-VL-3B-Instruct")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--output", type=Path, default=Path("outputs/feature_proposals.jsonl"))
-    parser.add_argument("--max-new-tokens", type=int, default=300)
     args = parser.parse_args()
 
     if not args.image.is_file():
         raise SystemExit(f"Missing image: {args.image}")
-    if not torch.cuda.is_available():
-        raise SystemExit("CUDA is required for this local VLM command")
+    image = Image.open(args.image).convert("RGB")
+    model, processor, device, dtype = load_model(args.model)
+    features: dict[str, object] = {}
+    raw_detections: dict[str, object] = {}
+    for name, description in FEATURE_SCHEMA[args.species]:
+        proposal, raw = _feature_proposal(
+            model, processor, device, dtype, image, args.species, name, description,
+        )
+        features[name] = proposal
+        raw_detections[name] = raw
 
-    feature_lines = "\n".join(
-        f'- "{name}": {description}' for name, description in FEATURE_SCHEMA[args.species]
-    )
-    prompt = f"""Inspect this {args.species} crop and propose labels only for visible features.
-Return one compact valid JSON object and no markdown, reasoning, list, or explanation. Use exactly these feature keys:
-{feature_lines}
-For each feature, return an object with status (visible, not_visible, or uncertain), confidence (0 to 1), evidence, and bbox.
-The bbox must be [x, y, width, height] normalized from 0 to 1 within this crop when the feature is visible or uncertain; use null when it cannot be located.
-Use uncertain when the feature cannot be judged reliably. Do not invent details. Set review_status to needs_review."""
-    messages = [{
-        "role": "user",
-        "content": [
-            {"type": "image", "image": str(args.image.resolve())},
-            {"type": "text", "text": prompt},
-        ],
-    }]
-
-    model, processor = load_qwen(args.model)
-    text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    image_inputs, video_inputs = process_vision_info(messages)
-    inputs = processor(
-        text=[text], images=image_inputs, videos=video_inputs,
-        padding=True, return_tensors="pt",
-    ).to("cuda")
-    with torch.inference_mode():
-        generated = model.generate(**inputs, max_new_tokens=args.max_new_tokens)
-    trimmed = [output[len(input_ids):] for input_ids, output in zip(inputs.input_ids, generated)]
-    raw_response = processor.batch_decode(
-        trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False,
-    )[0]
-    raw_output_path = args.output.with_name(f"{args.output.stem}_raw.txt")
+    record = {
+        "species": args.species,
+        "schema_version": SCHEMA_VERSION,
+        "source_image": str(args.image.resolve()),
+        "review_status": "needs_review",
+        "model": args.model,
+        "features": features,
+    }
+    raw_output_path = args.output.with_name(f"{args.output.stem}_raw.json")
     raw_output_path.parent.mkdir(parents=True, exist_ok=True)
-    raw_output_path.write_text(raw_response, encoding="utf-8")
-
-    record = parse_json_response(raw_response, args.species)
-    record["species"] = args.species
-    record["schema_version"] = SCHEMA_VERSION
-    record["source_image"] = str(args.image.resolve())
-    record["review_status"] = "needs_review"
+    raw_output_path.write_text(json.dumps(raw_detections, ensure_ascii=True, indent=2) + "\n", encoding="utf-8")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     indent = 2 if args.output.suffix.lower() == ".json" else None
     with args.output.open("w", encoding="utf-8") as output_file:

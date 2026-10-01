@@ -10,7 +10,6 @@ torch==2.11.0+cu128
 torchvision==0.26.0+cu128
 scikit-learn>=1.4,<2
 transformers>=4.49,<5
-qwen-vl-utils>=0.0.10,<1
 accelerate>=0.34,<2
 einops>=0.8,<1
 timm>=1.0,<2

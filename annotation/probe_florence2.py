@@ -12,18 +12,27 @@ from transformers import AutoModelForCausalLM, AutoProcessor
 
 
 DEFAULT_MODEL = "microsoft/Florence-2-base"
+LOCAL_MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "florence2"
 
 
 def load_model(model_name: str):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float16 if device == "cuda" else torch.float32
+    requested_path = Path(model_name)
+    local_model = (
+        LOCAL_MODEL_PATH
+        if model_name == DEFAULT_MODEL and (LOCAL_MODEL_PATH / "model.safetensors").is_file()
+        else requested_path
+        if requested_path.is_dir()
+        else model_name
+    )
     model = AutoModelForCausalLM.from_pretrained(
-        model_name,
+        local_model,
         torch_dtype=dtype,
         attn_implementation="eager",
         trust_remote_code=True,
     ).to(device)
-    processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+    processor = AutoProcessor.from_pretrained(local_model, trust_remote_code=True)
     return model, processor, device, dtype
 
 
