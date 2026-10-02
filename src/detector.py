@@ -15,6 +15,9 @@ from torchvision import models, transforms
 
 CUSTOM_MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "indian_wildlife_resnet18.pt"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if DEVICE.type == "cuda":
+    torch.set_num_threads(1)
+    torch.set_num_interop_threads(1)
 
 
 ANNOTATION_COLOR = "#0B2D5C"
