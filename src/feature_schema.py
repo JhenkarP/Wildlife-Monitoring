@@ -19,7 +19,7 @@ FEATURE_SCHEMA: dict[str, tuple[tuple[str, str], ...]] = {
     "indian leopard": (("body_rosette_spots", "Open-centered rosette spots across the leopard's torso or flanks."), ("long_white_whiskers", "Long white whiskers around the leopard's muzzle or cheeks."), ("spotted_paws", "Dark spots on the leopard's lower legs or paws.")),
     "nilgai": (("blue_grey_male_coat", "Blue-grey coat on the adult male nilgai."), ("white_throat_patch", "White throat patch on the nilgai."), ("short_straight_horns", "Short mostly straight horns on the nilgai.")),
     "sambar": (("antlers", "Large branching antlers on the Sambar; include the visible antler branches and exclude the head and background."), ("ears", "Visible ears of the Sambar; exclude the head and background."), ("eyes", "Visible eyes of the Sambar; exclude the head and background."), ("body", "Visible torso and body of the Sambar; exclude the head, legs, background, and surrounding scenery."), ("legs", "Visible legs of the Sambar; exclude the body, head, background, and surrounding scenery.")),
-    "sloth bear": (("shaggy_black_coat", "Shaggy black coat on the sloth bear."), ("pale_muzzle", "Broad pale muzzle on the sloth bear."), ("white_chest_mark", "Pale or white chest mark on the sloth bear.")),
+    "sloth bear": (("shaggy_black_coat", "Shaggy black coat on the sloth bear."), ("pale_muzzle", "Broad pale muzzle on the sloth bear."), ("white_chest_mark", "Pale or white chest mark on the sloth bear."), ("claws_or_paws", "Visible claws or paws on the sloth bear.")),
     "striped hyena": (("vertical_dark_stripes", "Dark vertical stripes on the hyena's body."), ("sloping_back", "Sloping back on the hyena."), ("dorsal_mane", "Mane along the hyena's neck or back.")),
 }
 

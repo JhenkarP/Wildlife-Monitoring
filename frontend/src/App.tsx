@@ -21,7 +21,7 @@ const featureCatalog: Record<string, string[]> = {
   'Indian leopard': ['body rosette spots', 'long white whiskers', 'spotted paws'],
   Nilgai: ['blue grey male coat', 'white throat patch', 'short straight horns'],
   Sambar: ['antlers', 'ears', 'eyes', 'body', 'legs'],
-  'Sloth bear': ['shaggy black coat', 'pale muzzle', 'white chest mark'],
+  'Sloth bear': ['shaggy black coat', 'pale muzzle', 'white chest mark', 'claws or paws'],
   'Striped hyena': ['vertical dark stripes', 'sloping back', 'dorsal mane'],
 }
 
