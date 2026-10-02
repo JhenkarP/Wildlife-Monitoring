@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -8,6 +9,8 @@ import streamlit as st
 
 from src.contract import CANONICAL_COLUMNS, load_csv, normalize_observations
 from src.database import append_observations, read_observations, replace_observations
+from src.detector import localize_features
+from src.feature_schema import FEATURE_SCHEMA
 from src.inat import fetch_recent_observations, observations_to_frame
 from src.regions import REGIONS
 
@@ -159,3 +162,39 @@ with tab_detection:
                     st.json(detections)
                 else:
                     st.info("No supported animal object was detected above the confidence threshold.")
+
+        st.divider()
+        st.subheader("Feature localization")
+        feature_species = st.selectbox(
+            "Species feature schema",
+            sorted(FEATURE_SCHEMA),
+            key="feature_species",
+        )
+        st.caption(
+            "Florence-2 marks configured body features for review. Green boxes can be visible or uncertain."
+        )
+        if st.button("Localize features", type="secondary"):
+            try:
+                with st.spinner("Localizing species features with Florence-2..."):
+                    marked_features, feature_record = localize_features(image, feature_species)
+            except Exception as error:
+                st.error(f"Feature localization could not run: {error}")
+            else:
+                st.image(marked_features, caption="Feature localization", use_container_width=True)
+                feature_rows = [
+                    {
+                        "feature": name.replace("_", " ").title(),
+                        "status": value.get("status"),
+                        "query": value.get("model_query"),
+                        "evidence": value.get("evidence"),
+                    }
+                    for name, value in feature_record["features"].items()
+                ]
+                st.dataframe(pd.DataFrame(feature_rows), use_container_width=True, hide_index=True)
+                st.download_button(
+                    "Download feature record",
+                    json.dumps(feature_record, indent=2),
+                    f"{feature_species.replace(' ', '_')}_features.json",
+                    "application/json",
+                    key="download_feature_record",
+                )

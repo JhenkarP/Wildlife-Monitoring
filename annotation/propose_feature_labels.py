@@ -13,10 +13,19 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from annotation.probe_florence2 import detect, load_model
-from src.feature_schema import FEATURE_SCHEMA, SCHEMA_VERSION
+from src.feature_schema import FEATURE_SCHEMA, SCHEMA_VERSION, feature_queries
 
 
 DEFAULT_MODEL = "microsoft/Florence-2-base"
+MAX_ACCEPTED_FEATURE_BOX_AREA = 0.25
+
+
+def _feature_query(species: str, feature_name: str) -> str:
+    return feature_queries(species, feature_name)[0]
+
+
+def _feature_queries(species: str, feature_name: str) -> list[str]:
+    return list(feature_queries(species, feature_name))
 
 
 def _normalized_box(box: list[float], image: Image.Image) -> list[float] | None:
@@ -65,45 +74,75 @@ def _feature_proposal(
     feature_name: str,
     description: str,
 ) -> tuple[dict[str, object], dict[str, object]]:
-    feature_query = (
-        feature_name.replace("_", " ")
-        if "tail" in feature_name
-        else description.rstrip(".")
-    )
-    query = feature_query
-    raw = detect(model, processor, device, dtype, image, query)
-    task_result = raw.get("<OPEN_VOCABULARY_DETECTION>", {})
-    raw_boxes = task_result.get("bboxes", [])
-    if not raw_boxes:
-        raw_boxes = _polygon_boxes(task_result)
-    boxes = [
-        normalized
-        for box in raw_boxes
-        if isinstance(box, list)
-        and (normalized := _normalized_box(box, image)) is not None
+    queries = _feature_queries(species, feature_name)
+    raw_results = []
+    boxes = []
+    for query in queries:
+        raw = detect(model, processor, device, dtype, image, query)
+        raw_results.append({"query": query, "result": raw})
+        task_result = raw.get("<OPEN_VOCABULARY_DETECTION>", {})
+        raw_boxes = task_result.get("bboxes", [])
+        if not raw_boxes:
+            raw_boxes = _polygon_boxes(task_result)
+        boxes.extend(
+            normalized
+            for box in raw_boxes
+            if isinstance(box, list)
+            and (normalized := _normalized_box(box, image)) is not None
+        )
+    feature_query = "; ".join(queries)
+    accepted_indices = [
+        index for index, box in enumerate(boxes)
+        if box[2] * box[3] <= MAX_ACCEPTED_FEATURE_BOX_AREA
     ]
-    if boxes:
-        bbox = max(boxes, key=lambda value: value[2] * value[3])
-        evidence = (
-            f"Florence-2 returned {len(boxes)} candidate box(es) for '{feature_query}'. "
-            "The candidate is unverified and requires human review."
+    accepted_boxes = [boxes[index] for index in accepted_indices]
+    rejected_boxes = [
+        box for box in boxes
+        if box[2] * box[3] > MAX_ACCEPTED_FEATURE_BOX_AREA
+    ]
+    if accepted_boxes:
+        accepted_index = max(
+            range(len(accepted_boxes)),
+            key=lambda index: accepted_boxes[index][2] * accepted_boxes[index][3],
         )
-        status = "uncertain"
+        bbox = accepted_boxes[accepted_index]
+        selected_index = accepted_indices[accepted_index]
+        evidence = (
+            f"Florence-2 accepted {len(accepted_boxes)} of {len(boxes)} candidate "
+            f"box(es) for '{feature_query}'."
+        )
+        status = "visible"
     else:
-        bbox = None
-        evidence = (
-            f"Florence-2 returned no candidate box for '{feature_query}'; "
-            "the feature is not shown."
-        )
-        status = "not_visible"
+        if rejected_boxes:
+            selected_index = max(
+                range(len(boxes)),
+                key=lambda index: boxes[index][2] * boxes[index][3],
+            )
+            bbox = boxes[selected_index]
+            evidence = (
+                f"Florence-2 returned {len(rejected_boxes)} broad box(es) for "
+                f"'{feature_query}'; shown for review but not verified."
+            )
+            status = "uncertain"
+        else:
+            bbox = None
+            evidence = (
+                f"Florence-2 returned no candidate box for '{feature_query}'; "
+                "the feature is not shown."
+            )
+            status = "not_visible"
     proposal = {
         "status": status,
         "evidence": evidence,
         "bbox": bbox,
-        "model_query": query,
+        "candidate_bboxes": boxes,
+        "accepted_candidate_bboxes": accepted_boxes,
+        "rejected_candidate_bboxes": rejected_boxes,
+        "selected_bbox_index": selected_index if boxes else None,
+        "model_query": feature_query,
         "feature_description": description,
     }
-    return proposal, {"query": query, "result": raw}
+    return proposal, {"queries": queries, "results": raw_results}
 
 
 def main() -> None:

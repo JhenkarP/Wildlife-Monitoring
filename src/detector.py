@@ -194,3 +194,43 @@ def classify_with_speciesnet(image: Image.Image):
             }
         )
     return annotated, detections
+
+
+@lru_cache(maxsize=1)
+def _load_florence_model():
+    from annotation.probe_florence2 import load_model
+
+    return load_model("microsoft/Florence-2-base")
+
+
+def localize_features(image: Image.Image, species: str):
+    """Localize the configured visual features for one uploaded image."""
+    from annotation.propose_feature_labels import _feature_proposal
+    from src.feature_renderer import render_feature_boxes
+    from src.feature_schema import FEATURE_SCHEMA, SCHEMA_VERSION
+
+    model, processor, device, dtype = _load_florence_model()
+    features = {}
+    raw_detections = {}
+    for name, description in FEATURE_SCHEMA[species]:
+        proposal, raw = _feature_proposal(
+            model,
+            processor,
+            device,
+            dtype,
+            image,
+            species,
+            name,
+            description,
+        )
+        features[name] = proposal
+        raw_detections[name] = raw
+    record = {
+        "species": species,
+        "schema_version": SCHEMA_VERSION,
+        "review_status": "needs_review",
+        "model": "microsoft/Florence-2-base",
+        "features": features,
+        "raw_detections": raw_detections,
+    }
+    return render_feature_boxes(image, record), record

@@ -9,15 +9,11 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 
-COLORS = {
-    "single horn": "#16803c",
-    "armor-like skin folds": "#c47f00",
-    "rounded ears": "#1769aa",
-}
+ANNOTATION_COLOR = "#16803c"
 
 
 def get_font(image: Image.Image) -> ImageFont.ImageFont:
-    size = max(14, min(22, min(image.size) // 42))
+    size = max(18, min(28, min(image.size) // 30))
     for name in ("arialbd.ttf", "Arial Bold.ttf", "arial.ttf"):
         try:
             return ImageFont.truetype(name, size)
@@ -36,7 +32,7 @@ def render(result_path: Path, output_dir: Path) -> Path:
 
     for query, task_result in result.get("detections", {}).items():
         detection = task_result.get("<OPEN_VOCABULARY_DETECTION>", {})
-        color = COLORS.get(query, "#7b1fa2")
+        color = ANNOTATION_COLOR
         for box in detection.get("bboxes", []):
             if not isinstance(box, list) or len(box) != 4:
                 continue
@@ -45,24 +41,24 @@ def render(result_path: Path, output_dir: Path) -> Path:
             top = max(0, min(image.height, top))
             right = max(left, min(image.width, right))
             bottom = max(top, min(image.height, bottom))
-            label = f"{query} (unverified)"
+            label = query
             text_box = draw.textbbox((0, 0), label, font=font)
             padding = 4
             label_width = text_box[2] - text_box[0] + padding * 2
             label_height = text_box[3] - text_box[1] + padding * 2
             label_left = max(0, min(image.width - label_width, left))
             label_top = max(0, top - label_height)
-            draw.rectangle((left, top, right, bottom), outline=color, width=4)
+            draw.rectangle((left, top, right, bottom), outline=color, width=6)
             draw.rectangle(
                 (label_left, label_top, label_left + label_width, label_top + label_height),
                 fill=color,
             )
-            draw.text(
-                (label_left + padding, label_top + padding - text_box[1]),
-                label,
-                fill="white",
-                font=font,
-            )
+        draw.text(
+            (label_left + padding, label_top + padding - text_box[1]),
+            label,
+            fill="white",
+            font=font,
+        )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{image_path.stem}_florence_marked.jpg"

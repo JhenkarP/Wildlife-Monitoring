@@ -1,0 +1,22 @@
+.annotated-frame {
+  aspect-ratio: var(--frame-ratio, 1 / 1);
+}
+
+.species-toggle {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 560px;
+}
+
+.species-toggle button:not(.selected) {
+  display: none;
+}
+
+.feature-box.uncertain {
+  border-color: #79b464;
+  background: rgba(91, 145, 76, 0.12);
+}
+
+.feature-box.uncertain span {
+  background: #67945b;
+}

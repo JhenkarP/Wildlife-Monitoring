@@ -21,6 +21,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("outputs/florence2"))
     parser.add_argument("--limit", type=int, default=30)
     parser.add_argument("--model", default="microsoft/Florence-2-base")
+    parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
     image_paths = sorted(
@@ -33,22 +34,37 @@ def main() -> None:
 
     model, processor, device, dtype = load_model(args.model)
     args.output.mkdir(parents=True, exist_ok=True)
+    skipped = 0
+    failed: list[str] = []
     for index, image_path in enumerate(image_paths, start=1):
-        image = Image.open(image_path).convert("RGB")
-        result = {
-            "model": args.model,
-            "image": str(image_path.resolve()),
-            "detections": {
-                query: detect(model, processor, device, dtype, image, query)
-                for query in DEFAULT_QUERIES
-            },
-        }
         output_path = args.output / f"{image_path.stem}_florence.json"
-        output_path.write_text(
-            json.dumps(result, ensure_ascii=True, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        print(f"[{index}/{len(image_paths)}] {image_path.name} -> {output_path}")
+        if output_path.is_file() and not args.overwrite:
+            skipped += 1
+            print(f"[{index}/{len(image_paths)}] skipped {image_path.name}")
+            continue
+        try:
+            with Image.open(image_path) as source:
+                image = source.convert("RGB")
+            result = {
+                "model": args.model,
+                "image": str(image_path.resolve()),
+                "detections": {
+                    query: detect(model, processor, device, dtype, image, query)
+                    for query in DEFAULT_QUERIES
+                },
+            }
+            output_path.write_text(
+                json.dumps(result, ensure_ascii=True, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            print(f"[{index}/{len(image_paths)}] {image_path.name} -> {output_path}")
+        except Exception as error:
+            failed.append(f"{image_path.name}: {error}")
+            print(f"[{index}/{len(image_paths)}] failed {image_path.name}: {error}")
+
+    print(f"completed={len(image_paths) - skipped - len(failed)} skipped={skipped} failed={len(failed)}")
+    if failed:
+        raise SystemExit("Batch completed with failures:\n" + "\n".join(failed))
 
 
 if __name__ == "__main__":

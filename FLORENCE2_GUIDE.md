@@ -1,9 +1,8 @@
-The probe uses Florence-2's `<OPEN_VOCABULARY_DETECTION>` task with feature-specific spatial phrases and returns normalized image-space bounding boxes after `post_process_generation` converts the model output. Rendered candidate boxes are green; the JSON record remains marked `needs_review` until a person verifies them.
 # Florence-2 Feature Detection Guide
 
 Florence-2-base is a small Microsoft vision-language model designed for prompt-driven vision tasks. It has about 0.23B parameters and is suitable for lower-memory feature probing.
 
-This repository uses it for review-only feature proposals. Every proposal remains `needs_review` until a human verifies the boxes.
+This repository uses it to draw feature boxes from Florence-2 detections. Florence-2 does not provide a calibrated confidence score, so returned boxes are not ranked by confidence.
 
 ## Install
 
@@ -52,7 +51,9 @@ The result contains one entry per query. A typical detection payload has this sh
 }
 ```
 
-Florence-2 does not provide a trustworthy calibrated confidence score for this task. Do not treat a returned box as verified merely because it exists. Review boxes and measure precision on a labeled sample first.
+Florence-2 does not provide a calibrated confidence score for this task. The pipeline draws returned boxes in green and records `not_visible` only when no box is returned. Review boxes and measure precision on a labeled sample before using them as training labels.
+
+When multiple boxes are returned, the proposal keeps every normalized box in `candidate_bboxes` and stores the largest candidate in `bbox` for compatibility. The selected index is recorded in `selected_bbox_index`; this selection still requires human review.
 
 ## Recommended Evaluation
 
@@ -61,6 +62,8 @@ Florence-2 does not provide a trustworthy calibrated confidence score for this t
 3. Florence-2 does not provide a calibrated confidence score for this task, so proposals contain no confidence field.
 4. Verify boxes manually before promoting labels into training data.
 5. Once the labels are stable, train a small YOLO feature detector for the final fast batch pipeline.
+
+Batch runs skip existing JSON files by default and continue after individual image failures. Use `--overwrite` to regenerate existing results.
 
 In the initial rhino smoke test, Florence returned duplicate horn candidates and broad feature boxes. Treat this as grounding output for review, not as verified annotation data.
 

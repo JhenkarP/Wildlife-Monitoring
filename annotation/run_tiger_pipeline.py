@@ -1,4 +1,4 @@
-"""Run localization, cropping, species identification, and Florence-2 review."""
+"""Run localization, species identification, and Florence-2 review."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ import sys
 from tempfile import TemporaryDirectory
 
 from PIL import Image
-from PIL import ImageOps
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -19,30 +18,24 @@ from src.feature_schema import FEATURE_SCHEMA
 from src.feature_renderer import render_feature_boxes
 
 
-STANDARD_CROP_SIZE = (640, 640)
 MIN_SPECIESNET_CONFIDENCE = 0.60
 MIN_SPECIESNET_BOX_AREA = 0.05
 
 
-def crop_from_detection(image: Image.Image, detection: dict) -> tuple[Image.Image, tuple[float, float, float, float]]:
-    x, y, width, height = [float(value) for value in detection["bbox"]]
+def validate_detection(
+    detection: dict,
+    min_confidence: float = MIN_SPECIESNET_CONFIDENCE,
+    min_box_area: float = MIN_SPECIESNET_BOX_AREA,
+) -> None:
+    width, height = [float(value) for value in detection["bbox"][2:4]]
     confidence = float(detection.get("conf", 0.0))
-    if confidence < MIN_SPECIESNET_CONFIDENCE:
+    if confidence < min_confidence:
         raise ValueError(
             f"SpeciesNet animal detection confidence {confidence:.3f} is below "
-            f"the {MIN_SPECIESNET_CONFIDENCE:.2f} threshold"
+            f"the {min_confidence:.2f} threshold"
         )
-    if width * height < MIN_SPECIESNET_BOX_AREA:
+    if width * height < min_box_area:
         raise ValueError("SpeciesNet animal detection box is too small")
-    left = max(0, int(x * image.width))
-    top = max(0, int(y * image.height))
-    right = min(image.width, int((x + width) * image.width))
-    bottom = min(image.height, int((y + height) * image.height))
-    if right <= left or bottom <= top:
-        raise ValueError("SpeciesNet returned an invalid detection box")
-    crop = image.crop((left, top, right, bottom))
-    crop = ImageOps.pad(crop, STANDARD_CROP_SIZE, method=Image.Resampling.LANCZOS, color="black")
-    return crop, (x, y, width, height)
 
 
 def normalize_feature_boxes(record: dict, image: Image.Image) -> None:
@@ -68,6 +61,8 @@ def main() -> None:
     parser.add_argument("image", type=Path)
     parser.add_argument("--species", choices=sorted(FEATURE_SCHEMA), default="bengal tiger")
     parser.add_argument("--output", type=Path, default=Path("outputs/tiger_pipeline"))
+    parser.add_argument("--min-speciesnet-confidence", type=float, default=MIN_SPECIESNET_CONFIDENCE)
+    parser.add_argument("--min-speciesnet-box-area", type=float, default=MIN_SPECIESNET_BOX_AREA)
     args = parser.parse_args()
     if not args.image.is_file():
         raise SystemExit(f"Missing image: {args.image}")
@@ -77,12 +72,17 @@ def main() -> None:
     detection = _strongest_speciesnet_detection(prediction)
     if not detection:
         raise SystemExit("SpeciesNet found no animal detection")
-    crop, bbox = crop_from_detection(original, detection)
+    if not 0 <= args.min_speciesnet_confidence <= 1:
+        raise SystemExit("--min-speciesnet-confidence must be between 0 and 1")
+    if not 0 <= args.min_speciesnet_box_area <= 1:
+        raise SystemExit("--min-speciesnet-box-area must be between 0 and 1")
+    validate_detection(
+        detection,
+        args.min_speciesnet_confidence,
+        args.min_speciesnet_box_area,
+    )
     with TemporaryDirectory(prefix="wildlife-pipeline-") as work_dir:
         work_path = Path(work_dir)
-        crop_path = work_path / f"{species_slug}_crop.jpg"
-        crop.save(crop_path, quality=95)
-
         from annotation.propose_feature_labels import main as propose_feature_labels
 
         proposal_path = work_path / f"{species_slug}_features.json"
@@ -90,7 +90,7 @@ def main() -> None:
         try:
             sys.argv = [
                 "propose_feature_labels.py",
-                str(crop_path),
+                str(args.image),
                 "--species", args.species,
                 "--output", str(proposal_path),
             ]
@@ -99,7 +99,7 @@ def main() -> None:
             sys.argv = old_argv
 
         record = json.loads(proposal_path.read_text(encoding="utf-8"))
-        normalize_feature_boxes(record, crop)
+    normalize_feature_boxes(record, original)
 
     visible_count = sum(
         value.get("status") == "visible"
@@ -115,7 +115,7 @@ def main() -> None:
     feature_marked_path = output_dir / f"{stem}_feature_marked.jpg"
     processed_original_path = processed_dir / f"{stem}_original{args.image.suffix.lower()}"
     shutil.copy2(args.image, processed_original_path)
-    render_feature_boxes(crop, record).save(feature_marked_path, quality=95)
+    render_feature_boxes(original, record).save(feature_marked_path, quality=95)
     _, classifications = classify_with_custom_model(original)
     record.update(
         {
