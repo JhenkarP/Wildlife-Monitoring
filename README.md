@@ -29,6 +29,16 @@ streamlit run app.py
 
 The dashboard also starts without a dataset and explains the expected CSV fields.
 
+## Refresh the sightings atlas
+
+The atlas database is generated locally from identifiable GBIF occurrence records. The refresh is restricted to India, the 14 species supported by the atlas, records with coordinates and event dates, and present occurrences. Records retain their GBIF occurrence ID, dataset, publisher key, location, date, and optional media URL.
+
+```powershell
+python -m data_collection.refresh_sightings --start-year 2000 --per-species 300 --replace
+```
+
+The command writes `data/processed/wildlife.sqlite`. Run it again without `--replace` to append only new occurrence IDs. GBIF is the historical atlas source; iNaturalist is a separate recent community-observation source and must be labelled as supplemental rather than camera-trap data. GBIF records and media remain subject to their publisher licenses and should be cited through the occurrence or dataset metadata.
+
 ## Expected historical CSV fields
 
 The importer accepts these canonical fields when available:

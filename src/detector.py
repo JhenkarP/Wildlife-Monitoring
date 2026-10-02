@@ -14,6 +14,7 @@ from torchvision import models, transforms
 
 
 CUSTOM_MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "indian_wildlife_resnet18.pt"
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 ANNOTATION_COLOR = "#0B2D5C"
@@ -52,7 +53,7 @@ def _annotate_image_classification(
 
 @lru_cache(maxsize=1)
 def _load_custom_model():
-    checkpoint = torch.load(CUSTOM_MODEL_PATH, map_location="cpu", weights_only=True)
+    checkpoint = torch.load(CUSTOM_MODEL_PATH, map_location=DEVICE, weights_only=True)
     classes = checkpoint["classes"]
     model = models.resnet18(weights=None)
     model.fc = torch.nn.Sequential(
@@ -60,6 +61,7 @@ def _load_custom_model():
         torch.nn.Linear(model.fc.in_features, len(classes)),
     )
     model.load_state_dict(checkpoint["state_dict"])
+    model.to(DEVICE)
     model.eval()
     return model, classes
 
@@ -115,7 +117,7 @@ def classify_with_custom_model(image: Image.Image):
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]
     )
-    image_tensor = transform(classification_image).unsqueeze(0)
+    image_tensor = transform(classification_image).unsqueeze(0).to(DEVICE)
     with torch.no_grad():
         probabilities = model(image_tensor).softmax(dim=1)[0]
     index = int(probabilities.argmax())
@@ -234,3 +236,34 @@ def localize_features(image: Image.Image, species: str):
         "raw_detections": raw_detections,
     }
     return render_feature_boxes(image, record), record
+
+
+def describe_with_florence(image: Image.Image, species: str, record: dict) -> str:
+    """Generate a concise whole-image description with Florence-2."""
+    model, processor, device, dtype = _load_florence_model()
+    task = "<MORE_DETAILED_CAPTION>"
+    inputs = processor(text=task, images=image, return_tensors="pt").to(device, dtype)
+    with torch.inference_mode():
+        generated_ids = model.generate(
+            input_ids=inputs["input_ids"],
+            pixel_values=inputs["pixel_values"],
+            max_new_tokens=160,
+            do_sample=False,
+            num_beams=3,
+            use_cache=False,
+        )
+    generated_text = processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+    processed = processor.post_process_generation(
+        generated_text,
+        task=task,
+        image_size=image.size,
+    )
+    caption = str(
+        processed.get(task)
+        or processed.get("<CAPTION>")
+        or processed.get("caption")
+        or ""
+    ).strip()
+    if not caption:
+        caption = generated_text.split(task, 1)[-1].replace("</s>", "").strip()
+    return caption or f"The image shows a {species}."
