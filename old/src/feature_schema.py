@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.6"
 FEATURE_SCHEMA: dict[str, tuple[tuple[str, str], ...]] = {
     "asian elephant": (("trunk", "Visible trunk on the elephant."), ("fan_shaped_ears", "Large fan-shaped ears on the elephant."), ("tusks", "Visible tusks on the elephant.")),
     "asiatic lion": (("eyes", "Visible eyes of the Asiatic lion."), ("ears", "Visible ears of the Asiatic lion."), ("tail", "Visible tail of the Asiatic lion."), ("body_coat", "Short tawny coat covering the lion's torso, shoulders, and flanks; exclude the head, legs, tail, and background.")),
@@ -15,12 +15,12 @@ FEATURE_SCHEMA: dict[str, tuple[tuple[str, str], ...]] = {
     "dhole": (("reddish_coat", "Reddish or rust-colored coat on the dhole."), ("rounded_ears", "Short rounded ears on the dhole."), ("bushy_dark_tipped_tail", "Bushy dark-tipped tail on the dhole.")),
     "gaur": (("shoulder_hump", "Pronounced shoulder hump on the gaur."), ("white_lower_leg_stockings", "White stockings on the gaur's lower legs."), ("curved_horns", "Short curved horns on the gaur.")),
     "greater one horned rhino": (("single_horn", "Small single horn at the front of the rhino's snout."), ("armor_like_skin_folds", "Horizontal skin folds on the rhino's neck and shoulders behind the head."), ("rounded_ears", "Small rounded ear above the rhino's head.")),
-    "hanuman langur": (("black_face", "Black face and muzzle on the langur."), ("grey_silver_coat", "Grey-silver coat on the langur."), ("long_tail", "Long tail on the langur.")),
+    "hanuman langur": (("face", "Black face and muzzle."), ("arms", "Long slender arms."), ("tail", "Long curved tail."), ("eyes", "Dark alert eyes.")),
     "indian leopard": (("body_rosette_spots", "Open-centered rosette spots across the leopard's torso or flanks."), ("long_white_whiskers", "Long white whiskers around the leopard's muzzle or cheeks."), ("spotted_paws", "Dark spots on the leopard's lower legs or paws.")),
-    "nilgai": (("blue_grey_male_coat", "Blue-grey coat on the adult male nilgai."), ("white_throat_patch", "White throat patch on the nilgai."), ("short_straight_horns", "Short mostly straight horns on the nilgai.")),
+    "nilgai": (("horns", "Nilgai horns."), ("legs", "Nilgai legs."), ("throat", "Nilgai's white throat."), ("face", "Nilgai's face and white markings."), ("body", "Nilgai's body and coat.")),
     "sambar": (("antlers", "Large branching antlers on the Sambar; include the visible antler branches and exclude the head and background."), ("ears", "Visible ears of the Sambar; exclude the head and background."), ("eyes", "Visible eyes of the Sambar; exclude the head and background."), ("body", "Visible torso and body of the Sambar; exclude the head, legs, background, and surrounding scenery."), ("legs", "Visible legs of the Sambar; exclude the body, head, background, and surrounding scenery.")),
     "sloth bear": (("shaggy_black_coat", "Shaggy black coat on the sloth bear."), ("pale_muzzle", "Broad pale muzzle on the sloth bear."), ("white_chest_mark", "Pale or white chest mark on the sloth bear."), ("claws_or_paws", "Visible claws or paws on the sloth bear.")),
-    "striped hyena": (("vertical_dark_stripes", "Dark vertical stripes on the hyena's body."), ("sloping_back", "Sloping back on the hyena."), ("dorsal_mane", "Mane along the hyena's neck or back.")),
+    "striped hyena": (("head", "Striped hyena's head and face."), ("legs", "Striped hyena's legs and paws."), ("body", "Striped hyena's body, stripes, and back."), ("tail", "Striped hyena's tail."), ("mane", "Striped hyena's neck mane.")),
 }
 
 FEATURE_QUERY_OVERRIDES: dict[str, dict[str, tuple[str, ...]]] = {
@@ -39,6 +39,26 @@ FEATURE_QUERY_OVERRIDES: dict[str, dict[str, tuple[str, ...]]] = {
         "eyes": ("only sambar eyes, not the whole animal",),
         "body": ("only sambar torso and body, not the head, legs, background, or scenery",),
         "legs": ("only sambar legs, not the body, head, background, or scenery",),
+    },
+    "nilgai": {
+        "horns": ("nilgai horns", "short black male nilgai horns"),
+        "legs": ("nilgai legs", "long slender nilgai legs"),
+        "throat": ("nilgai white throat", "nilgai white throat bib"),
+        "face": ("nilgai face", "nilgai white facial markings"),
+        "body": ("nilgai body", "nilgai coat"),
+    },
+    "hanuman langur": {
+        "face": ("hanuman langur face",),
+        "arms": ("hanuman langur arms",),
+        "tail": ("hanuman langur tail", "long langur tail"),
+        "eyes": ("hanuman langur eyes",),
+    },
+    "striped hyena": {
+        "head": ("striped hyena head", "striped hyena face"),
+        "legs": ("striped hyena legs", "striped hyena paws"),
+        "body": ("striped hyena body", "striped hyena dark stripes", "striped hyena sloping back"),
+        "tail": ("striped hyena tail",),
+        "mane": ("striped hyena mane", "striped hyena neck mane"),
     },
 }
 

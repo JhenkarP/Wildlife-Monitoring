@@ -24,7 +24,7 @@ const featureCatalog: Record<string, string[]> = {
   Dhole: ['reddish coat', 'rounded ears', 'bushy dark tipped tail'],
   Gaur: ['shoulder hump', 'white lower leg stockings', 'curved horns'],
   'Greater one horned rhino': ['single horn', 'armor like skin folds', 'rounded ears'],
-  'Hanuman langur': ['black face', 'grey silver coat', 'long tail'],
+  'Hanuman langur': ['face', 'arms', 'tail', 'eyes'],
   'Indian leopard': ['body rosette spots', 'long white whiskers', 'spotted paws'],
   Nilgai: ['blue grey male coat', 'white throat patch', 'short straight horns'],
   Sambar: ['antlers', 'ears', 'eyes', 'body', 'legs'],
@@ -32,9 +32,26 @@ const featureCatalog: Record<string, string[]> = {
   'Striped hyena': ['vertical dark stripes', 'sloping back', 'dorsal mane'],
 }
 
+const frontendFeatureDescriptions: Record<string, Record<string, string>> = {
+  'Bengal tiger': {
+    Head: "The tiger's head is broad and rounded, with a striped forehead, forward-facing eyes, rounded ears, white cheek fur, a short muzzle, and visible whiskers.",
+    Abdomen: "The tiger's abdomen is the central underside of its torso, covered with short fur and continuing from the chest toward the pelvis.",
+    Legs: "The tiger's legs are strong, muscular limbs with striped fur and padded paws that support and propel its body.",
+    Tail: "The tiger's tail is a long, striped extension from the hindquarters that helps the animal maintain balance and communicate.",
+  },
+}
+
+const frontendFeatureDescription = (species: string, name: string, fallback: string) => {
+  const speciesKey = Object.keys(frontendFeatureDescriptions).find(key => key.toLowerCase() === species.toLowerCase())
+  return frontendFeatureDescriptions[speciesKey ?? '']?.[name] ?? fallback
+}
+
 const featureSets: Record<string, Feature[]> = Object.fromEntries(Object.entries(featureCatalog).map(([species, names]) => [
   species,
-  names.map(name => ({ name: name.replace(/\b\w/g, character => character.toUpperCase()), status: 'uncertain' as const, description: `Configured ${species} feature proposal. Analyze a frame to localize it.`, box: [0, 0, 0, 0] as [number, number, number, number] })),
+  names.map(name => {
+    const displayName = name.replace(/\b\w/g, character => character.toUpperCase())
+    return { name: displayName, status: 'uncertain' as const, description: frontendFeatureDescription(species, displayName, `Configured ${species} feature proposal. Analyze a frame to localize it.`), box: [0, 0, 0, 0] as [number, number, number, number] }
+  }),
 ]))
 const canonicalSpecies = (species: string) => Object.keys(featureSets).find(name => name.toLowerCase() === species.toLowerCase()) ?? species
 const formatDate = (value: string) => new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value))
@@ -178,7 +195,7 @@ function App() {
       const response = await fetch(`${apiBase}/api/analyze`, { method: 'POST', body: formData })
       if (!response.ok) throw new Error('API unavailable')
       const result = await response.json() as Analysis
-      result.features = result.features.map(feature => ({ ...feature, box: feature.box.map(value => value <= 1 ? value * 100 : value) as [number, number, number, number] }))
+      result.features = result.features.map(feature => ({ ...feature, description: frontendFeatureDescription(result.species, feature.name, feature.description), box: feature.box.map(value => value <= 1 ? value * 100 : value) as [number, number, number, number] }))
       setAnalysis(result); setSelectedSpecies(canonicalSpecies(result.species)); setMode('live')
     } catch {
       setAnalysis({ species: selectedSpecies, confidence: selectedSpecies === 'Sambar' ? 0.91 : 0.94, features: featureSets[selectedSpecies], description: selectedSpecies === 'Sambar' ? 'A Sambar is visible in a woodland frame. Antlers, ears, eyes, and lower legs are identifiable; the body region remains a review candidate.' : 'An Asiatic lion is visible in a woodland frame. Eyes, ears, and tail are identifiable, while the body coat remains a review candidate.' })
@@ -191,7 +208,7 @@ function App() {
   return <main className={`app-shell ${pageState}`}>
     <header className="topbar"><div className="brand-lockup"><span className="brand-mark"><ScanSearch size={18} /></span><span>WILD / SCOPE</span></div><div className="topbar-status"><span className="status-dot" /> FIELD LAB ONLINE <span className="topbar-divider" /> 02 OCT 2026</div><button className="icon-button" title="Help"><CircleHelp size={18} /></button></header>
     <div className="page-grid">
-      <aside className="side-nav"><div className="nav-kicker">WORKSPACE</div><button className={`nav-item ${activePage === 'analysis' ? 'active' : ''}`} onClick={() => setActivePage('analysis')}><Activity size={17} /> Analysis <span className="nav-count">01</span></button><button className={`nav-item ${activePage === 'atlas' ? 'active' : ''}`} onClick={() => setActivePage('atlas')}><MapPinned size={17} /> Sighting atlas</button><button className="nav-item"><Camera size={17} /> Camera-trap sets</button><div className="nav-rule" /><div className="nav-kicker">PIPELINE</div><div className="model-status"><span className="model-pip resnet" /><div><strong>ResNet18</strong><small>species classifier</small></div><Check size={14} /></div><div className="model-status"><span className="model-pip florence" /><div><strong>Florence-2</strong><small>feature locator</small></div><Check size={14} /></div><div className="side-footer"><span>INDIA PILOT</span><strong>5 regions / 13 species</strong></div></aside>
+      <aside className="side-nav"><div className="nav-kicker">WORKSPACE</div><button className={`nav-item ${activePage === 'analysis' ? 'active' : ''}`} onClick={() => setActivePage('analysis')}><Activity size={17} /> Analysis <span className="nav-count">01</span></button><button className={`nav-item ${activePage === 'atlas' ? 'active' : ''}`} onClick={() => setActivePage('atlas')}><MapPinned size={17} /> Sighting atlas</button><div className="nav-rule" /><div className="nav-kicker">PIPELINE</div><div className="model-status"><span className="model-pip resnet" /><div><strong>ResNet18</strong><small>species classifier</small></div><Check size={14} /></div><div className="model-status"><span className="model-pip florence" /><div><strong>Florence-2</strong><small>feature locator</small></div><Check size={14} /></div><div className="side-footer"><span>INDIA PILOT</span><strong>5 regions / 13 species</strong></div></aside>
       <section className={`content-column ${activePage === 'atlas' ? 'atlas-mode' : ''}`}>
         {activePage === 'atlas' && (sanctuaryReport ? <><ReportHeader report={sanctuaryReport} onBack={() => setSelectedSanctuary(null)} /><SanctuaryLocationMap report={sanctuaryReport} /><SanctuaryReport report={sanctuaryReport} onBack={() => setSelectedSanctuary(null)} /><ReportAnalysis report={sanctuaryReport} /><EcologyEvidence report={sanctuaryReport} /></> : <SanctuaryAtlas stats={sanctuaryStats} totalRecords={sanctuaryTotal} onSelect={setSelectedSanctuary} />)}
         <div className="page-intro"><div><p className="eyebrow">WILDLIFE INTELLIGENCE / FRAME 01</p><h1>From one frame<br /><em>to a field map.</em></h1></div><div className="intro-note"><Sparkles size={16} /><span>ResNet identifies.<br />Florence makes it legible.</span></div></div>
