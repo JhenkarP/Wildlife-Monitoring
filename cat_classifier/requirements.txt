@@ -1,0 +1,6 @@
+streamlit>=1.40,<2
+pillow>=10,<12
+requests>=2.32,<3
+torch>=2.0
+torchvision>=0.15
+open_clip_torch>=2.24,<4

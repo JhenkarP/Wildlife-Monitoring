@@ -2,27 +2,33 @@
 __pycache__/
 *.py[cod]
 .streamlit/
+.vscode/
 
-# Local datasets and generated data
-data/*
-!data/.gitkeep
-data/feature_annotations/
+# Datasets, downloaded images, manifests, and generated data
+data/
+cat_classifier/data/
+**/data/
+**/*.jpg
+**/*.jpeg
+**/*.png
+**/*.webp
+**/*.bmp
+**/*.tif
+**/*.tiff
 
-# Local model checkpoints and generated evaluation artifacts
+# Generated models and evaluation artifacts are ignored by default.
 models/
+cat_classifier/models/*.pt
 outputs/
 *.log
 
-# Research documents kept outside the source repository
+# Research documents and local exports
 *.pdf
-
-# Notebook and editor artifacts
-.ipynb_checkpoints/
-.vscode/
-
-# Local exports and temporary files
 *.zip
 *.tar
 *.tar.gz
 *.tmp
+*.ipynb_checkpoints/
 
+# Publish the selected trained model explicitly with git add -f.
+!cat_classifier/models/felidae_nine_species_leopardus_balanced_finetuned.pt
